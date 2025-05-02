@@ -12,7 +12,7 @@ export type KfNodeContext = {
 
 export function mount(to: HTMLElement, tree: KFNode) {
     if (to.$$reconciler) {
-        throw new Error("what");
+        throw new Error("another component already mount this element");
     }
 
     const evaluatedTree = evaluateJsx(tree);
