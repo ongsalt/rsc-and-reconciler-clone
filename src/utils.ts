@@ -1,4 +1,6 @@
-import { KFNode, kfNodeSymbol } from "./jsx";
+import { KFNode, kfNodeSymbol } from "./jsx-runtime";
+
+export type AnyFn = (...args: unknown[]) => unknown;
 
 export function toArray<T>(input: T | T[]): T[] {
   return Array.isArray(input) ? input : [input];

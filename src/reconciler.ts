@@ -1,5 +1,5 @@
-import { KFNode, kfNodeSymbol } from "./jsx";
-import { isKfNode, toArray } from "./utils";
+import { KFNode, kfNodeSymbol } from "./jsx-runtime";
+import { AnyFn, isKfNode, toArray } from "./utils";
 
 export type KfReconcilationContext = {
     evaluatedTree: KFNode;
@@ -43,7 +43,6 @@ export function mount(to: HTMLElement, tree: KFNode) {
     };
 }
 
-type AnyFn = (...args: unknown[]) => unknown;
 function listen(to: Element, eventType: string, handler: AnyFn, previousHandler?: AnyFn) {
     // if (!to.$$nodeContext) {
     //     to.$$nodeContext = {
