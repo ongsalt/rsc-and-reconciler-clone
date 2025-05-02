@@ -1,4 +1,5 @@
 import { JSXNode, KFNode, kfNodeSymbol } from "./jsx-runtime";
+import { provideHook } from "./state";
 import { AnyFn, isKfNode, toArray } from "./utils";
 
 export type KfReconcilationContext = {
@@ -120,7 +121,7 @@ function patch(oldTree: KFReconcilerNode | null, newTree: KFReconcilerNode | nul
     // if its text node -> diff it
     if (!isNewTreeKf) {
         if (oldTree!.kfNode !== newTree.kfNode) {
-            console.log(`[reconciler] Updating textContent: ${newTree.kfNode} for`, node);
+            console.log(`[reconciler] Updating textContent: ${newTree.kfNode}`);
             node.textContent = `${newTree.kfNode}`;
         }
         return;
@@ -211,21 +212,17 @@ export function reconcile(node: KFNode | any, oldTree: KFReconcilerNode | null):
 
     if (typeof node.type === "function") {
         const Component = node.type;
-        // we need to do state here
-        // find old context
+        // TODO: find out when to dispose the state 
 
-        // run(() => {
-        const it = Component({ ...node.props, children: node.children });
-        // });
+        const [component, states] = provideHook(oldTree, () => {
+            const component = Component({ ...node.props, children: node.children });
+            return component;
+        });
 
-        // return {
-        //     $$kind: kfNodeSymbol,
-        //     type: node.type,
-        //     props: node.props,
-        //     children: toArray(node.children ?? []).map(it => evaluateJsx(it, componentContext))
-        // };
-
-        return reconcile(it, oldTree?.children?.[0] ?? null);
+        const reconcilerNode = reconcile(component, oldTree?.children?.[0] ?? null);
+        reconcilerNode.states = states;
+        // console.log(states)
+        return reconcilerNode;
     }
 
     const children = toArray(node.children ?? []).map((it, index) => reconcile(it, oldTree?.children?.[index] ?? null));
