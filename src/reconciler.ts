@@ -22,7 +22,7 @@ export function mount(to: HTMLElement, tree: KFNode) {
         evaluatedTree,
         tree,
     };
-    // console.log(context);
+    console.log(context);
     to.$$reconciler = context;
     to.appendChild(root);
 

@@ -1,6 +1,5 @@
 import { App } from "./App";
 import { mount } from "./reconciler";
-import { h } from "./jsx";
 
 const appRoot = document.getElementById("app")!;
 
@@ -12,18 +11,16 @@ function nextName() {
 }
 
 const bus = new EventTarget();
-const sendMessage = (type: string) => () => bus.dispatchEvent(new Event(type));
+const sendMessage = (type: string) => bus.dispatchEvent(new Event(type));
 
-const s = sendMessage("rerender")
+const s = () => sendMessage("rerender");
 
 // to simulate jsx
+// const { render } = mount(appRoot, App({ name: nextName(), rerender: s }));
 // const { render } = mount(appRoot, h(App, { name: nextName() }));
-const { render } = mount(appRoot, App({ name: nextName(), rerender: s }));
+const { render } = mount(appRoot, <App name={nextName()} rerender={s} />);
 
 bus.addEventListener("rerender", () => {
-    render(App({
-        name: nextName(),
-        rerender: s
-    }));
+    render(<App name={nextName()} rerender={s} />);
 })
 

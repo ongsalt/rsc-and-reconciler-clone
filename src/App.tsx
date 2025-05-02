@@ -4,8 +4,8 @@ export function App({ name, rerender }: { name: string; rerender: () => unknown;
             <h1>Title</h1>
             <p> jodivhuviui </p>
             <p> Hello {name}</p>
-            <button> Rerender </button>
-            <input type="text" onclick={rerender} />
+            <button onclick={rerender}> Rerender </button>
+            <input type="text" />
         </div>
     );
 }
