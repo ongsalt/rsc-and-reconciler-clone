@@ -37,7 +37,7 @@ export interface KFNode {
     $$kind: typeof kfNodeSymbol,
     type: string | KFComponent<any> | undefined,
     props?: Record<string, any>;
-    children?: any,
+    children?: JSXNode | JSXNode[] | AnyFn, // TODO: handle case where we pass a function
     key?: string;
 }
 

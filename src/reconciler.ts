@@ -1,13 +1,17 @@
-import { KFNode, kfNodeSymbol } from "./jsx-runtime";
+import { JSXNode, KFNode, kfNodeSymbol } from "./jsx-runtime";
 import { AnyFn, isKfNode, toArray } from "./utils";
 
 export type KfReconcilationContext = {
-    evaluatedTree: KFNode;
+    evaluatedTree: KFReconcilerNode;
     tree: KFNode;
 };
 
-export type KfNodeContext = {
-    // eventListeners: Record<string, (...args: unknown[]) => unknown>;
+
+export type KFReconcilerNode = {
+    parent?: KFReconcilerNode;
+    children: KFReconcilerNode[];
+    kfNode: JSXNode;
+    states?: any[];
 };
 
 export function mount(to: HTMLElement, tree: KFNode) {
@@ -15,20 +19,21 @@ export function mount(to: HTMLElement, tree: KFNode) {
         throw new Error("another component already mount this element");
     }
 
-    const evaluatedTree = evaluateJsx(tree);
+    const evaluatedTree = reconcile(tree, null);
     const root = initNode(evaluatedTree) as HTMLElement;
 
     const context: KfReconcilationContext = {
         evaluatedTree,
         tree,
     };
+
     console.log(context);
     to.$$reconciler = context;
     to.appendChild(root);
 
     return {
         render(newTree: KFNode) {
-            const evaluatedTree = evaluateJsx(newTree);
+            const evaluatedTree = reconcile(newTree, context.evaluatedTree);
             // console.log({ newTree, evaluatedTree });
 
             patch(context.evaluatedTree!, evaluatedTree, root);
@@ -58,17 +63,22 @@ function listen(to: Element, eventType: string, handler: AnyFn, previousHandler?
     to.addEventListener(type, handler);
 }
 
-function initNode(node: KFNode): Node {
-    if (!isKfNode(node)) {
-        return document.createTextNode(`${node}`);
+// build dom node
+function initNode({ kfNode, children }: KFReconcilerNode): Node {
+    if (!isKfNode(kfNode)) {
+        return document.createTextNode(`${kfNode}`);
     }
 
-    if (typeof node.type === "function") {
-        throw new Error("node must be rendered first");
+    if (typeof kfNode.type === "function") {
+        // passthought
+        if (children.length === 0) {
+            throw new Error("Is this reconcile yet");
+        }
+        return initNode(children[0]);
     }
 
-    const element = document.createElement(node.type as any) as HTMLElement;
-    for (const [key, value] of Object.entries(node.props ?? {})) {
+    const element = document.createElement(kfNode.type as any) as HTMLElement;
+    for (const [key, value] of Object.entries(kfNode.props ?? {})) {
         if (key.startsWith("on")) {
             listen(element, key, value);
         } else {
@@ -76,7 +86,6 @@ function initNode(node: KFNode): Node {
         }
     }
 
-    const children = toArray(node.children);
     for (const child of children) {
         element.appendChild(initNode(child));
     }
@@ -84,37 +93,80 @@ function initNode(node: KFNode): Node {
     return element;
 }
 
-function patch(oldTree: KFNode | null, newTree: KFNode | null, node: Node): Node | null {
+function patch(oldTree: KFReconcilerNode | null, newTree: KFReconcilerNode | null, node: Node) {
     // console.log(`patching ${node}`);
     if (!newTree) {
         node.parentElement?.removeChild(node);
         // node.remove();
-        return null;
+        return;
     }
 
-    const isNewTreeKf = isKfNode(newTree);
-    const isOldTreeKf = isKfNode(oldTree);
+    const oldNode = oldTree?.kfNode;
+    const newNode = newTree.kfNode;
+
+    const isNewTreeKf = isKfNode(newNode);
+    const isOldTreeKf = isKfNode(oldNode);
     // if they different node/element type
-    if (isOldTreeKf !== isNewTreeKf || newTree.type !== oldTree?.type) {
+    if (isOldTreeKf !== isNewTreeKf) {
         console.log(`Different node type`);
         // todo: extract this to another function
         const newNode = initNode(newTree);
         node.parentElement?.replaceChild(newNode, node);
         node = newNode;
         console.log(node);
+        return;
     }
 
+    // if its text node -> diff it
     if (!isNewTreeKf) {
-        if (!isOldTreeKf && oldTree !== newTree) {
-            console.log(`[reconciler] Updating textContent: ${newTree} for`, node);
-            node.textContent = `${newTree}`;
+        if (oldTree!.kfNode !== newTree.kfNode) {
+            console.log(`[reconciler] Updating textContent: ${newTree.kfNode} for`, node);
+            node.textContent = `${newTree.kfNode}`;
         }
-        return node;
+        return;
+    }
+
+    // ts cant auto catch this so...
+    if (!isOldTreeKf) {
+        throw new Error("Wtf");
+    }
+
+    // we now have both kfnode
+    if (newNode.type !== oldNode?.type) {
+        console.log(`Different element type`);
+        // todo: extract this to another function
+        const newNode = initNode(newTree);
+        node.parentElement?.replaceChild(newNode, node);
+        node = newNode;
+        console.log(node);
+        return;
+    }
+
+    // we now have same node type
+
+    // if its a component
+    const oldProps = oldNode.props ?? {};
+    const newProps = newNode.props ?? {};
+    if (typeof newNode.type === "function") {
+        // diff its props - just by shallow ref
+        let different = false;
+        if (Object.keys(oldProps).length !== Object.keys(newProps).length) {
+            different = true;
+        } else {
+            for (const [key, value] of Object.entries(newProps)) {
+                if (oldProps[key] !== value) {
+                    different = true;
+                    break;
+                }
+            }
+        }
+
+        if (!different) {
+            return;
+        }
     }
 
     // Diffing attributes
-    const oldProps = oldTree?.props ?? {};
-    const newProps = newTree?.props ?? {};
 
     // todo: event handler
     for (const [key, _] of Object.entries(oldProps)) {
@@ -144,36 +196,47 @@ function patch(oldTree: KFNode | null, newTree: KFNode | null, node: Node): Node
     for (let i = 0; i < oldChildren.length; i++) {
         patch(oldChildren[i], newChildren[i] ?? null, node.childNodes[i]);
     }
-
-    return node;
 }
 
-type StateNode = {
-    parent: StateNode;
-    states: any[];
-    children: StateNode;
-};
 
-// TODO: implement this when we have jsx
-export function evaluateJsx(node: KFNode | any): KFNode | any {
-    // keep string/number/... as is
+// TODO: we need to manage state here
+// TODO: keying thing
+export function reconcile(node: KFNode | any, oldTree: KFReconcilerNode | null): KFReconcilerNode {
     if (!isKfNode(node)) {
-        return `${node}`;
+        return {
+            children: [],
+            kfNode: `${node}`
+        };
     }
 
     if (typeof node.type === "function") {
         const Component = node.type;
         // we need to do state here
-        // state tree or something?
-        const it = Component({ ...node.props, children: node.children });
+        // find old context
 
-        return evaluateJsx(it);
+        // run(() => {
+        const it = Component({ ...node.props, children: node.children });
+        // });
+
+        // return {
+        //     $$kind: kfNodeSymbol,
+        //     type: node.type,
+        //     props: node.props,
+        //     children: toArray(node.children ?? []).map(it => evaluateJsx(it, componentContext))
+        // };
+
+        return reconcile(it, oldTree?.children?.[0] ?? null);
     }
 
+    const children = toArray(node.children ?? []).map((it, index) => reconcile(it, oldTree?.children?.[index] ?? null));
+
     return {
-        $$kind: kfNodeSymbol,
-        type: node.type,
-        props: node.props,
-        children: toArray(node.children ?? []).map(it => evaluateJsx(it))
+        kfNode: {
+            $$kind: kfNodeSymbol,
+            type: node.type,
+            props: node.props,
+            children: children.map(it => it.kfNode)
+        },
+        children,
     };
 }
