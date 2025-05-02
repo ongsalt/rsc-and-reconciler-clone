@@ -1,6 +1,6 @@
 import { useState } from "./state";
 
-export function App({ name, rerender }: { name: string; rerender: () => unknown; }) {
+export function App({ name }: { name: string; }) {
     const [count, setCount] = useState(0);
     const increment = () => setCount(it => it + 1);
     return (
@@ -10,7 +10,6 @@ export function App({ name, rerender }: { name: string; rerender: () => unknown;
             <p> Hello {name}</p>
             <p> count: {count}</p>
             <button onclick={increment}> increment </button>
-            <button onclick={rerender}> Rerender </button>
             <input type="text" />
         </div>
     );

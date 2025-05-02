@@ -39,6 +39,7 @@ export interface KFNode {
     props?: Record<string, any>;
     children?: JSXNode | JSXNode[] | AnyFn, // TODO: handle case where we pass a function
     key?: string;
+    // static: boolean
 }
 
 // TODO: find the attributes type

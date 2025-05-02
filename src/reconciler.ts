@@ -11,6 +11,7 @@ export type KfReconcilationContext = {
 export type KFReconcilerNode = {
     parent?: KFReconcilerNode;
     children: KFReconcilerNode[];
+    domNode?: Node;
     kfNode: JSXNode;
     states?: any[];
 };
@@ -33,6 +34,9 @@ export function mount(to: HTMLElement, tree: KFNode) {
     to.appendChild(root);
 
     return {
+        rerender() {
+            updateSubtree(context.evaluatedTree);
+        },
         render(newTree: KFNode) {
             const evaluatedTree = reconcile(newTree, context.evaluatedTree);
             // console.log({ newTree, evaluatedTree });
@@ -64,8 +68,9 @@ function listen(to: Element, eventType: string, handler: AnyFn, previousHandler?
     to.addEventListener(type, handler);
 }
 
-// build dom node
-function initNode({ kfNode, children }: KFReconcilerNode): Node {
+// build dom node and attach it to the KFReconcilerNode
+function initNode(node: KFReconcilerNode): Node {
+    const { kfNode, children } = node;
     if (!isKfNode(kfNode)) {
         return document.createTextNode(`${kfNode}`);
     }
@@ -91,11 +96,13 @@ function initNode({ kfNode, children }: KFReconcilerNode): Node {
         element.appendChild(initNode(child));
     }
 
+    node.domNode = element;
     return element;
 }
 
+// TODO: optimize patching
 function patch(oldTree: KFReconcilerNode | null, newTree: KFReconcilerNode | null, node: Node) {
-    // console.log(`patching ${node}`);
+    // console.log(`patching`, node);
     if (!newTree) {
         node.parentElement?.removeChild(node);
         // node.remove();
@@ -148,23 +155,32 @@ function patch(oldTree: KFReconcilerNode | null, newTree: KFReconcilerNode | nul
     // if its a component
     const oldProps = oldNode.props ?? {};
     const newProps = newNode.props ?? {};
-    if (typeof newNode.type === "function") {
-        // diff its props - just by shallow ref
-        let different = false;
-        if (Object.keys(oldProps).length !== Object.keys(newProps).length) {
-            different = true;
-        } else {
-            for (const [key, value] of Object.entries(newProps)) {
-                if (oldProps[key] !== value) {
-                    different = true;
-                    break;
-                }
-            }
-        }
+    const oldChildren = toArray(oldTree?.children ?? []);
+    const newChildren = toArray(newTree.children ?? []);
 
-        if (!different) {
-            return;
-        }
+    if (typeof newNode.type === "function") {
+        // console.log(`same props???`);
+        // // diff its props - just by shallow ref
+        // let different = false;
+        // if (Object.keys(oldProps).length !== Object.keys(newProps).length) {
+        //     different = true;
+        // } else {
+        //     for (const [key, value] of Object.entries(newProps)) {
+        //         if (oldProps[key] !== value) {
+        //             different = true;
+        //             break;
+        //         }
+        //     }
+        // }
+
+        // if (different) {
+
+        // } else {
+
+        // }
+        // why do diff the props???
+        patch(oldChildren[0] ?? null, newChildren[0], node);
+        return;
     }
 
     // Diffing attributes
@@ -191,14 +207,21 @@ function patch(oldTree: KFReconcilerNode | null, newTree: KFReconcilerNode | nul
 
     // Diffing children
     // TODO: key
-    const oldChildren = toArray(oldTree?.children ?? []);
-    const newChildren = toArray(newTree?.children ?? []);
 
     for (let i = 0; i < oldChildren.length; i++) {
         patch(oldChildren[i], newChildren[i] ?? null, node.childNodes[i]);
     }
 }
 
+export function updateSubtree(root: KFReconcilerNode) {
+    // patch(root)
+    const newTree = reconcile(root.kfNode, root);
+    // console.log({
+    //     newTree,
+    //     old: root
+    // });
+    patch(root, newTree, root.domNode ?? root.children[0].domNode!);
+}
 
 // TODO: we need to manage state here
 // TODO: keying thing
@@ -213,15 +236,27 @@ export function reconcile(node: KFNode | any, oldTree: KFReconcilerNode | null):
     if (typeof node.type === "function") {
         const Component = node.type;
         // TODO: find out when to dispose the state 
-
-        const [component, states] = provideHook(oldTree, () => {
+        // TODO: refactor this
+        const [component, states, registerRerenderFn] = provideHook(oldTree, () => {
             const component = Component({ ...node.props, children: node.children });
             return component;
         });
 
-        const reconcilerNode = reconcile(component, oldTree?.children?.[0] ?? null);
-        reconcilerNode.states = states;
-        // console.log(states)
+        const immediateChild = reconcile(component, oldTree?.children?.[0] ?? null);
+        // return immediateChild;
+        const reconcilerNode: KFReconcilerNode = {
+            states,
+            kfNode: {
+                $$kind: kfNodeSymbol,
+                type: node.type,
+                props: node.props,
+                children: immediateChild.children.map(it => it.kfNode)
+            },
+            children: [immediateChild],
+        };
+
+        registerRerenderFn(reconcilerNode);
+
         return reconcilerNode;
     }
 
@@ -235,5 +270,6 @@ export function reconcile(node: KFNode | any, oldTree: KFReconcilerNode | null):
             children: children.map(it => it.kfNode)
         },
         children,
+        domNode: oldTree?.domNode
     };
 }
