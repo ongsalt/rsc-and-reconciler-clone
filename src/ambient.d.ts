@@ -1,7 +1,8 @@
-import { KFNode } from "./renderer";
+import { KfReconcilationContext, KfNodeContext } from "./reconciler";
 
 declare global {
     interface Element {
-        $$jsx?: KFNode;
+        $$reconciler?: KfReconcilationContext;
+        $$nodeContext?: KfNodeContext;
     }
 }

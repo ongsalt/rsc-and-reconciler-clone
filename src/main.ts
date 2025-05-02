@@ -1,27 +1,34 @@
+import { App } from "./App";
 import { mount } from "./reconciler";
-import { h } from "./renderer";
+import { h } from "./jsx";
 
 const appRoot = document.getElementById("app")!;
-
-function App({ name }: { name: string; }) {
-  return h("div", {}, [
-    h("h1", {}, "Title"),
-    h("p", {}, "ajfuihuishfiojo"),
-    h("p", {}, `Hello, ${name}!`),
-    h("button", { id: "rerender-btn" }, "rerender"),
-    h("input")
-  ]);
-}
 
 const names = ["Ena", "Mizuki", "Kanade", "Mafuyu"];
 let nameIndex = 0;
 function nextName() {
-  nameIndex = (nameIndex + 1) % names.length;
-  return names[nameIndex];
+    nameIndex = (nameIndex + 1) % names.length;
+    return names[nameIndex];
 }
 
-const { render } = mount(appRoot, App({ name: nextName() }));
-setInterval(() => {
-  console.log("Rerender");
-  render(App({ name: nextName() }));
-}, 1000);
+const bus = new EventTarget();
+const sendMessage = (type: string) => () => bus.dispatchEvent(new Event(type));
+
+// to simulate jsx
+// const { render } = mount(appRoot, h(App, { name: nextName() }));
+const s = sendMessage("rerender")
+
+const { render } = mount(appRoot, App({ name: nextName(), rerender: s }));
+
+// setInterval(() => {
+//     // console.log("Rerender");
+//     render(App({ name: nextName() }));
+// }, 1000);
+
+bus.addEventListener("rerender", () => {
+    render(App({
+        name: nextName(),
+        rerender: s
+    }));
+})
+

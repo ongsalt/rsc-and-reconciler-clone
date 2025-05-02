@@ -1,4 +1,4 @@
-import { KFNode, kfNodeSymbol } from "./renderer";
+import { KFNode, kfNodeSymbol } from "./jsx";
 
 export function toArray<T>(input: T | T[]): T[] {
   return Array.isArray(input) ? input : [input];
