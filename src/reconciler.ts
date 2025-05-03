@@ -21,7 +21,7 @@ export function mount(to: HTMLElement, tree: KFNode) {
         throw new Error("another component already mount this element");
     }
 
-    const evaluatedTree = reconcile(tree, null);
+    const evaluatedTree = populate(tree, null);
     const root = initNode(evaluatedTree) as HTMLElement;
 
     const context: KfReconcilationContext = {
@@ -35,10 +35,10 @@ export function mount(to: HTMLElement, tree: KFNode) {
 
     return {
         rerender() {
-            updateSubtree(context.evaluatedTree);
+            reconcile(context.evaluatedTree);
         },
         render(newTree: KFNode) {
-            const evaluatedTree = reconcile(newTree, context.evaluatedTree);
+            const evaluatedTree = populate(newTree, context.evaluatedTree);
             // console.log({ newTree, evaluatedTree });
 
             patch(context.evaluatedTree!, evaluatedTree, root);
@@ -78,7 +78,7 @@ function initNode(node: KFReconcilerNode): Node {
     if (typeof kfNode.type === "function") {
         // passthought
         if (children.length === 0) {
-            throw new Error("Is this reconcile yet");
+            throw new Error("Is this populate yet");
         }
         return initNode(children[0]);
     }
@@ -101,6 +101,7 @@ function initNode(node: KFReconcilerNode): Node {
 }
 
 // TODO: optimize patching
+// This diff both trees and apply change to the dom
 function patch(oldTree: KFReconcilerNode | null, newTree: KFReconcilerNode | null, node: Node) {
     // console.log(`patching`, node);
     if (!newTree) {
@@ -213,9 +214,9 @@ function patch(oldTree: KFReconcilerNode | null, newTree: KFReconcilerNode | nul
     }
 }
 
-export function updateSubtree(root: KFReconcilerNode) {
+export function reconcile(root: KFReconcilerNode) {
     // patch(root)
-    const newTree = reconcile(root.kfNode, root);
+    const newTree = populate(root.kfNode, root);
     // console.log({
     //     newTree,
     //     old: root
@@ -225,7 +226,8 @@ export function updateSubtree(root: KFReconcilerNode) {
 
 // TODO: we need to manage state here
 // TODO: keying thing
-export function reconcile(node: KFNode | any, oldTree: KFReconcilerNode | null): KFReconcilerNode {
+// We attach state and rebuild new tree here
+export function populate(node: KFNode | any, oldTree: KFReconcilerNode | null): KFReconcilerNode {
     if (!isKfNode(node)) {
         return {
             children: [],
@@ -242,8 +244,8 @@ export function reconcile(node: KFNode | any, oldTree: KFReconcilerNode | null):
             return component;
         });
 
-        const immediateChild = reconcile(component, oldTree?.children?.[0] ?? null);
-        // return immediateChild;
+        //  recursively populate the tree
+        const immediateChild = populate(component, oldTree?.children?.[0] ?? null);
         const reconcilerNode: KFReconcilerNode = {
             states,
             kfNode: {
@@ -260,7 +262,7 @@ export function reconcile(node: KFNode | any, oldTree: KFReconcilerNode | null):
         return reconcilerNode;
     }
 
-    const children = toArray(node.children ?? []).map((it, index) => reconcile(it, oldTree?.children?.[index] ?? null));
+    const children = toArray(node.children ?? []).map((it, index) => populate(it, oldTree?.children?.[index] ?? null));
 
     return {
         kfNode: {

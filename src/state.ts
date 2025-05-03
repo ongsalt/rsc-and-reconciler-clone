@@ -1,4 +1,4 @@
-import { KFReconcilerNode, updateSubtree } from "./reconciler";
+import { KFReconcilerNode, reconcile } from "./reconciler";
 
 // TODO remove activeStates
 let currentRerenderFn: { rerender(): unknown; } | null = null;
@@ -21,7 +21,7 @@ export function provideHook<T = unknown>(reconcilerNode: KFReconcilerNode | null
     currentRerenderFn = previousRerenderFn;
 
     function registerRerenderFn(node: KFReconcilerNode) {
-        rerenderRef.rerender = () => updateSubtree(node);
+        rerenderRef.rerender = () => reconcile(node);
     }
 
     return [value, states, registerRerenderFn] as const;
