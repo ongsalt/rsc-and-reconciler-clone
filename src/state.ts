@@ -57,3 +57,44 @@ export function useState<T>(initialValue: T): [T, Setter<T>] {
     // tell the reconcilerNode some how to rerender
     return [value, setter];
 }
+
+export function useRef<T>(initialValue: T): { value: T; } {
+    if (!activeStates || !currentRerenderFn) {
+        throw new Error("You can only call useRef from a component");
+    }
+    if (activeStates.length <= stateIndex) {
+        activeStates.push(initialValue);
+    }
+    const states = activeStates;
+    const index = stateIndex;
+    stateIndex += 1;
+
+    return {
+        get value() {
+            return states[index];
+        },
+        set value(newValue) {
+            states[index] = newValue;
+        }
+    };
+}
+
+export function useEffect(callback: () => unknown, dependencies: any[] = []) {
+    const dependenciesRef = useRef([] as any[]);
+    
+    if (dependenciesRef.value.length !== dependencies.length) {
+        throw new Error("dependencies lenght change detected (should we allow this)");
+    } else {
+        for (let i = 0; i < dependencies.length; i++) {
+            if (dependencies[i] !== dependenciesRef.value[i]) {
+                // wait but in react this will run after mount tho
+                // and we also dont do any cleanup yet
+                callback();
+                dependenciesRef.value.splice(0, dependenciesRef.value.length);
+                dependenciesRef.value.push(...dependencies);
+                return;
+            }
+        }
+    }
+}
+

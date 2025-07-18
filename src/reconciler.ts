@@ -160,6 +160,8 @@ function patch(oldTree: KFReconcilerNode | null, newTree: KFReconcilerNode | nul
     const newChildren = toArray(newTree.children ?? []);
 
     if (typeof newNode.type === "function") {
+        // we diff the props if same then skip
+        // except when we patch this becuase of setState call
         // console.log(`same props???`);
         // // diff its props - just by shallow ref
         // let different = false;
@@ -179,7 +181,6 @@ function patch(oldTree: KFReconcilerNode | null, newTree: KFReconcilerNode | nul
         // } else {
 
         // }
-        // why do diff the props???
         patch(oldChildren[0] ?? null, newChildren[0], node);
         return;
     }
