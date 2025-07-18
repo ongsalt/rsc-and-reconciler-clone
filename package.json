@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "dev:server": "bun --watch ./src/server.ts",
+    "build:client": "tsc && vite build --outDir dist/client --ssrManifest",
+    "build:server": "vite build --outDir dist/server --ssr src/entry-server.js",
     "preview": "vite preview"
   },
   "devDependencies": {
