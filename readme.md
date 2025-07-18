@@ -1,1 +1,1 @@
-thi is just reconciler tho, no rsc yet
+this is just reconciler tho, no rsc yet
