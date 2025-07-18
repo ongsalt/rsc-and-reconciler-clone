@@ -1,12 +1,11 @@
 import { JSXNode, KFNode, kfNodeSymbol } from "./jsx-runtime";
-import { provideHook } from "./state";
+import { provideHook } from "./hooks";
 import { AnyFn, isKfNode, toArray } from "./utils";
 
 export type KfReconcilationContext = {
     evaluatedTree: KFReconcilerNode;
     tree: KFNode;
 };
-
 
 export type KFReconcilerNode = {
     parent?: KFReconcilerNode;
@@ -38,6 +37,7 @@ export function mount(to: HTMLElement, tree: KFNode) {
             reconcile(context.evaluatedTree);
         },
         render(newTree: KFNode) {
+            // wtf am i doing
             const evaluatedTree = populate(newTree, context.evaluatedTree);
             // console.log({ newTree, evaluatedTree });
 

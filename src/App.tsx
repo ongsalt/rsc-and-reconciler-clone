@@ -1,4 +1,4 @@
-import { useState } from "./state";
+import { useState } from "./hooks";
 
 export function App({ name }: { name: string; }) {
     const [count, setCount] = useState(0);
